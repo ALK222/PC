@@ -1,6 +1,8 @@
-package sever;
+package server;
 
 import java.io.Serializable;
+
+import users.User;
 
 public class File implements Serializable{
 
@@ -8,10 +10,12 @@ public class File implements Serializable{
 	
 	private String name;
 	private String path;
+	private User user;
 	
-	public File(String name, String path) {
+	public File(String name, String path, User user) {
 		this.name = name;
 		this.path = path;
+		this.user = user;
 	}
 	
 	public File(File f) {
@@ -26,6 +30,14 @@ public class File implements Serializable{
 	public String getPath() {
 		return this.path;
 	}
+	
+	 public boolean hasFilename(String filename) {
+	        return name.equals(filename);
+	    }
+
+	    public User getUser() {
+	        return user;
+	    }
 	
 	@Override
 	public String toString() {

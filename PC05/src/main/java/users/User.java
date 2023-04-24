@@ -3,7 +3,7 @@ package users;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import sever.File;
+import server.File;
 
 public class User implements Serializable {
 
