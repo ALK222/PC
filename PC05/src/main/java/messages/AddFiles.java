@@ -8,8 +8,8 @@ public class AddFiles extends Message {
 
 	private ArrayList<File> fileList;
 
-	public AddFiles(String origin, String destination, String id, ArrayList<File> fileList) {
-		super();
+	public AddFiles(String origin, String destination, ArrayList<File> fileList) {
+		super(origin, destination);
 		this.type = MessageType.ADD_FILE;
 		this.fileList = fileList;
 	}

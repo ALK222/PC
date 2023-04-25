@@ -8,8 +8,8 @@ public class DeleteFile extends Message {
 
 	private ArrayList<File> fileList;
 
-	public DeleteFile(String origin, String destination, String id, ArrayList<File> fileList) {
-		super(origin, destination, id);
+	public DeleteFile(String origin, String destination, ArrayList<File> fileList) {
+		super(origin, destination);
 		this.type = MessageType.DELETE_FILE;
 		this.fileList = fileList;
 	}

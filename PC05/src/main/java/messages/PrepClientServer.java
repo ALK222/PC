@@ -7,8 +7,8 @@ public class PrepClientServer extends Message {
 	private int port;
 	private String fileName;
 
-	public PrepClientServer(String origin, String destination, String id, String ip, int port, String fileName) {
-		super(ip, destination, id);
+	public PrepClientServer(String origin, String destination, String ip, int port, String fileName) {
+		super(ip, destination);
 		this.type = MessageType.PREPAIRING_CLIENT_SERVER;
 
 		this.userDest = origin;

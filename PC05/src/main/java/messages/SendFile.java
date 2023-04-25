@@ -6,8 +6,8 @@ public class SendFile extends Message {
 	private String destUser;
 	private String fileName;
 
-	public SendFile(String origin, String destination, String id, String filename, String path, String destUser) {
-		super(origin, destination, id);
+	public SendFile(String origin, String destination, String filename, String path, String destUser) {
+		super(origin, destination);
 		this.type = MessageType.SEND_FILE;
 		this.path = path;
 		this.destUser = destUser;
