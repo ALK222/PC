@@ -6,6 +6,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
 
+import users.User;
+
 public class Receptor extends Thread {
 
 	private Socket socket;
@@ -16,10 +18,10 @@ public class Receptor extends Thread {
 
 	private Semaphore receptorSem;
 
-	public Receptor(ServerSocket serverSocket, String fileName, Semaphore receptorSem) {
+	public Receptor(User user, int i, Semaphore receptorSem) {
 
-		this.serverSocket = serverSocket;
-		this.fileName = fileName;
+		this.serverSocket = user;
+		this.fileName = i;
 		this.receptorSem = receptorSem;
 	}
 

@@ -8,7 +8,7 @@ import java.util.concurrent.Semaphore;
 
 public class Transmitter extends Thread {
 
-	private Socket socket;
+	private int port;
 	private String fileName;
 	private FileInputStream in;
 	private ObjectOutputStream out;
@@ -16,11 +16,10 @@ public class Transmitter extends Thread {
 
 	private Semaphore transmitterSem;
 
-	public Transmitter(ServerSocket serverSocket, String fileName, Semaphore transmitterSem) {
+	public Transmitter(int port, String fileName) {
 
-		this.serverSocket = serverSocket;
+		this.port = port;
 		this.fileName = fileName;
-		this.transmitterSem = transmitterSem;
 	}
 
 	public void run() {

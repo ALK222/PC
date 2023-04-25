@@ -16,12 +16,13 @@ import messages.Message;
 import messages.RequestFile;
 import messages.UserList;
 import server.File;
+import users.User;
 import utils.Lock;
 import utils.LockRompeEmpate;
 
 public class Client extends Thread {
 	private String clientIp;
-	private String id;
+	private User u;
 	private ServerListener serverListener;
 	private ObjectOutputStream out;
 	private String serverIp;
@@ -48,6 +49,14 @@ public class Client extends Thread {
 		}
 
 		System.out.println("[CLIENT]: New Client created");
+	}
+	
+	public User getUser() {
+		return this.u;
+	}
+	
+	public Semaphore getSem() {
+		return this.clientSem;
 	}
 
 	public void run() {

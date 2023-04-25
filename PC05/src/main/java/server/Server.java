@@ -10,10 +10,9 @@ import java.util.HashMap;
 
 import users.User;
 
-import listeners.ClientListener;
 import monitors.ReadersWritersController;;
 
-public class Server extends Thread {
+public class Server  {
 
 	private int port;
 	private ArrayList<User> userList;
@@ -50,20 +49,6 @@ public class Server extends Thread {
 		userStreamMapController.releaseRead();
 		return ret;
 
-	}
-
-	public void run() {
-		try {
-			System.out.println("[SERVER] Waiting for connections");
-
-			Socket clientSocket = this.socket.accept();
-
-			new ClientListener(clientSocket, this).run();
-
-			System.out.println("[SERVER] New connection accepted");
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 
 	/*
@@ -212,6 +197,10 @@ public class Server extends Thread {
 
         return false;
 	}
+	
+	public ServerSocket getServerSocket() {
+		return this.socket;
+	}
 
 	/*
 	 * LOCK FUNCTION
@@ -239,19 +228,18 @@ public class Server extends Thread {
 			return -1;
 		}
 
-		String ip = args[0];
-		int port = Integer.parseInt(args[1]);
+		int port = Integer.parseInt(args[0]);
 
 		Server server = new Server(port);
 
-		server.start();
-
-		try {
-			server.join();
-		} catch (Exception e) {
-			e.printStackTrace();
+		while(true) {
+			
+			try {
+				server.getServerSocket().accept();
+				
+			} catch (Exception e) {
+				return 1;
+			}
 		}
-
-		return 0;
 	}
 }
