@@ -1,23 +1,23 @@
 package messages;
 
+import users.User;
+
 public class PrepClientServer extends Message {
 
-	private String userDest;
+	private User userDest;
 	private String ip;
 	private int port;
-	private String fileName;
 
-	public PrepClientServer(String origin, String destination, String ip, int port, String fileName) {
+	public PrepClientServer(String origin, String destination, String ip, int port, User user) {
 		super(ip, destination);
 		this.type = MessageType.PREPAIRING_CLIENT_SERVER;
 
-		this.userDest = origin;
+		this.userDest = user;
 		this.ip = ip;
 		this.port = port;
-		this.fileName = fileName;
 	}
 
-	public String getUserDest() {
+	public User getUserDest() {
 		return userDest;
 	}
 
@@ -29,7 +29,4 @@ public class PrepClientServer extends Message {
 		return port;
 	}
 
-	public String getFileName() {
-		return fileName;
-	}
 }

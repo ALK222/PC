@@ -197,6 +197,21 @@ public class Server extends Thread {
 			u.removeFile(f);
 		}
 	}
+	
+	public boolean hasUser(String user) {
+		if (!userListController.requestRead())
+            return true;
+
+        for (User u : userList)
+            if (u.getId().equals(user)) {
+                userListController.releaseRead();
+                return true;
+            }
+
+        userListController.releaseRead();
+
+        return false;
+	}
 
 	/*
 	 * LOCK FUNCTION

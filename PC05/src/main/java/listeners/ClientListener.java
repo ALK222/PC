@@ -1,18 +1,27 @@
 package listeners;
 
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 
+import messages.CloseConnection;
+import messages.CloseConnectionConfirm;
 import messages.Connection;
 import messages.ConnectionConfirm;
 import messages.ConnectionError;
 import messages.Message;
+import messages.PrepClientServer;
+import messages.PrepServerClient;
+import messages.RequestFile;
+import messages.RequestFileError;
+import messages.SendFile;
+import messages.UserList;
+import messages.UserListConfirmation;
+import server.File;
 import server.Server;
 import users.User;
-import users.UserFlow;
 
 public class ClientListener implements Runnable {
 
@@ -20,7 +29,7 @@ public class ClientListener implements Runnable {
 	private ObjectInputStream in;
 	private ObjectOutputStream out;
 
-	public ClientListener(Socket socket, ObjectInputStream in, ObjectOutputStream out) throws IOException {
+	public ClientListener(Server server, ObjectInputStream in, ObjectOutputStream out) throws IOException {
 
 		this.server = server;
 		this.in = in;
@@ -37,6 +46,8 @@ public class ClientListener implements Runnable {
 			e.printStackTrace();
 			return;
 		}
+		
+		User user = null;
 
 		while (true) {
 			Message m;
@@ -50,30 +61,69 @@ public class ClientListener implements Runnable {
 			switch (m.getType()) {
 			case CONNECTION:
 				try {
-					connectionMessage((Connection) m, outStr);
+					connectionMessage((Connection) m, outStr, user);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 				break;
-
+			case USER_LIST:
+				userListMessage((UserList) m, outStr);
+				break;
+			case CLOSE_CONNECTION:
+				closeConnectionMessage((CloseConnection) m, outStr);
+				break;
+			case REQUEST_FILE:
+				requestFileMessage((RequestFile) m, outStr);
+				break;
+			case PREPAIRING_CLIENT_SERVER:
+				prepClientServerMessage((PrepClientServer) m, outStr, user);
+				break;
 			default:
+				System.err.print("CLIENTLISTENER ERROR\n");
 				break;
 			}
 		}
 	}
 
-	private void connectionMessage(Connection m, ObjectOutputStream outStr) throws IOException {
-		User user = m.getUser();
+	private void prepClientServerMessage(PrepClientServer m, ObjectOutputStream outStr, User user) {
+		if(user == null) {
+			System.err.println("No user found");
+			return;
+		}
+		
+		User dest = this.server.getUser(m.getUserDest());
+		
+		if(dest == null) {
+			return;
+		}
+		
+		ObjectOutputStream outStr2 = this.server.getObjectOutputStream(dest);
+		
+		if(outStr2 == null) {
+			return;
+		}
+		
+		Message mpsc = new PrepServerClient("", "", "", m.getPort());
+		try {
+			outStr2 .writeObject(mpsc);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+
+	private void connectionMessage(Connection m, ObjectOutputStream outStr, User user) throws IOException {
+		user = m.getUser();
 
 		// Si el usuario ya existe, mandar MENSAJE_USUARIO_REPETIDO a OyenteServidor
-		if (server.hasUser(user.toString())) {
+		if (server.hasUser(user.getId())) {
 
-			Message mur = new ConnectionError(user.toString());
+			Message mur = new ConnectionError("", "", user.getId());
 
 			try {
 				outStr.writeObject(mur);
 			} catch (IOException e) {
-				System.err.println("ERROR: I/O error in stream");
+				e.printStackTrace();
 				return;
 			}
 
@@ -82,20 +132,91 @@ public class ClientListener implements Runnable {
 		}
 
 		// Añadir usuario a las tablas del servidor
-		if (this.server.addUser(user, outStr))
-			return;
-
-		if (this.server.addToUserList(user))
+		if (!this.server.addUser(user, outStr))
 			return;
 
 		// Mandar MENSAJE_CONFIRMACION_CONEXION a OyenteServidor
-		Mensaje mcc = new MensajeConfirmacionConexion();
+		Message mcc = new ConnectionConfirm("", "");
 
 		try {
-			objOutStr.writeObject(mcc);
+			outStr.writeObject(mcc);
 		} catch (IOException e) {
-			System.err.println("ERROR: I/O error in stream");
+			e.printStackTrace();
 			return;
+		}
+	}
+
+	private void userListMessage(UserList m, ObjectOutputStream outStr) {
+		ArrayList<User> userList = this.server.getUserList();
+		ArrayList<ArrayList<File>> fileMatrix = this.server.getFileMatrix();
+		if (userList == null) {
+			return;
+		}
+		if (fileMatrix == null) {
+			return;
+		}
+
+		Message mul = new UserListConfirmation(null, null, userList, fileMatrix);
+
+		try {
+            outStr.reset();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        try {
+            outStr.writeObject(mul);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+	}
+	
+	private void closeConnectionMessage(CloseConnection m, ObjectOutputStream outStr) {
+		if(!this.server.deleteUser(m.getUser())) {
+			return;
+		}
+		
+		Message mcc = new CloseConnectionConfirm("","");
+		
+		try {
+			outStr.writeObject(mcc);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+	
+	private void requestFileMessage(RequestFile m, ObjectOutputStream outStr) {
+		String filename = m.getFileName();
+		File file = this.server.getFileWithFilename(filename);
+		
+		if(file == null) {
+			RequestFileError mfe = new RequestFileError("", "");
+			
+			try {
+				outStr.writeObject(mfe);
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+				return;
+			}
+		} else {
+			ObjectOutputStream userOut = this.server.getObjectOutputStream(file.getUser());
+			
+			if(userOut == null) {
+				return;
+			} 
+			
+			SendFile msf = new SendFile("", "", filename, m.getUser(), this.server.getAndIncrementNextPort());
+			
+			try {
+				outStr.writeObject(msf);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return;
+			}
 		}
 	}
 

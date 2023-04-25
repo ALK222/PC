@@ -1,10 +1,19 @@
 package messages;
 
-public class CloseConnection extends Message {
+import users.User;
 
-	public CloseConnection(String origin, String destination) {
+public class CloseConnection extends Message {
+	
+	private User u;
+
+	public CloseConnection(String origin, String destination, User u) {
 		super(origin, destination);
 		this.type = MessageType.CLOSE_CONNECTION;
+		this.u = u;
+	}
+	
+	public User getUser() {
+		return u;
 	}
 
 }
