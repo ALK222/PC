@@ -24,7 +24,6 @@ import users.User;
 
 public class ServerListener extends Thread {
 
-	private Socket socket;
 	private ObjectInputStream in;
 	private ObjectOutputStream out;
 	private Client client;
@@ -98,7 +97,8 @@ public class ServerListener extends Thread {
 			return;
 		}
 		
-		new Transmitter(m.getPort(), m.getFileName()).start();
+		
+		new Transmitter(m.getPort(), m.getFile()).start();
 	}
 
 	private void userListConfirmMessage(UserListConfirmation m, Semaphore sem) {

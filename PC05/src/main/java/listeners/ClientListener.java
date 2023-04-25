@@ -103,7 +103,7 @@ public class ClientListener implements Runnable {
 			return;
 		}
 		
-		Message mpsc = new PrepServerClient("", "", "", m.getPort());
+		Message mpsc = new PrepServerClient("", "", dest, m.getPort());
 		try {
 			outStr2 .writeObject(mpsc);
 		} catch (Exception e) {
@@ -209,7 +209,7 @@ public class ClientListener implements Runnable {
 				return;
 			} 
 			
-			SendFile msf = new SendFile("", "", filename, m.getUser(), this.server.getAndIncrementNextPort());
+			SendFile msf = new SendFile("", "", file, m.getUser(), this.server.getAndIncrementNextPort());
 			
 			try {
 				outStr.writeObject(msf);
