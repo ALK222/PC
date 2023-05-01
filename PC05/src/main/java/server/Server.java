@@ -1,26 +1,32 @@
 package server;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+
+import listeners.ClientListener;
+
 import java.util.HashMap;
 
 import users.User;
 
-import monitors.ReadersWritersController;;
+import monitors.RsWsController;;
 
-public class Server  {
+public class Server {
 
 	private int port;
 	private ArrayList<User> userList;
 	private ServerSocket socket;
 	private int nextPort;
 	private Map<User, ObjectOutputStream> userStreams;
-	private ReadersWritersController userStreamMapController;
-	private ReadersWritersController userListController;
+	private RsWsController userStreamMapController;
+	private RsWsController userListController;
 	private ReentrantLock nextPortLock;
 
 	public Server(int port) {
@@ -30,10 +36,12 @@ public class Server  {
 			this.userStreams = new HashMap<User, ObjectOutputStream>();
 			this.socket = new ServerSocket(this.port);
 			this.nextPort = 30000;
-			userStreamMapController = new ReadersWritersController();
-			userListController = new ReadersWritersController();
+			userStreamMapController = new RsWsController();
+			userListController = new RsWsController();
 
 			nextPortLock = new ReentrantLock(true);
+
+			System.out.println("[SERVER] Server at port: " + this.port);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -41,8 +49,9 @@ public class Server  {
 
 	public ObjectOutputStream getObjectOutputStream(User user) {
 
-		if (!userStreamMapController.requestRead())
+		if (!userStreamMapController.requestRead()) {
 			return null;
+		}
 
 		ObjectOutputStream ret = this.userStreams.get(user);
 
@@ -56,32 +65,39 @@ public class Server  {
 	 */
 	public synchronized boolean presentId(String id) {
 		if (!userListController.requestRead())
-            return true;
+			return true;
 
-        for (User u : userList)
-            if (u.toString().equals(id)) {
-                userListController.releaseRead();
-                return true;
-            }
+		for (User u : userList)
+			if (u.toString().equals(id)) {
+				userListController.releaseRead();
+				return true;
+			}
 
-        userListController.releaseRead();
+		userListController.releaseRead();
 
-        return false;
+		return false;
 	}
 
 	public synchronized boolean addUser(User u, ObjectOutputStream uf) {
-		if (!userStreamMapController.requestWrite())
+		if (!userStreamMapController.requestWrite()) {
 			return false;
+		}
 
 		this.userStreams.put(u, uf);
 
 		userStreamMapController.releaseWrite();
 
+		if (!userListController.requestWrite()) {
+			return false;
+		}
+		this.userList.add(u);
+
+		userListController.releaseWrite();
 		return true;
 	}
 
 	public synchronized boolean deleteUser(User user) {
-		if (userStreamMapController.requestWrite())
+		if (!userStreamMapController.requestWrite())
 			return false;
 
 		userStreams.remove(user);
@@ -100,32 +116,43 @@ public class Server  {
 	}
 
 	public synchronized ArrayList<User> getUserList() {
-		return new ArrayList<User>(this.userList);
+		if (!this.userListController.requestRead()) {
+			return null;
+		}
+		ArrayList<User> aux = new ArrayList<User>(this.userList);
+		userListController.releaseRead();
+		return aux;
 	}
 
 	public synchronized ArrayList<ArrayList<File>> getFileMatrix() {
+
+		if (!this.userStreamMapController.requestRead()) {
+			return null;
+		}
 		ArrayList<ArrayList<File>> matrix = new ArrayList<ArrayList<File>>();
 
 		for (User u : userList) {
 			matrix.add(new ArrayList<File>(u.getFileList()));
 		}
 
+		userStreamMapController.releaseRead();
+
 		return matrix;
 	}
 
 	public synchronized User getUser(User user) {
 		if (!userListController.requestRead())
-            return null;
+			return null;
 
-        for (User u : userList)
-            if (u.toString().equals(user.toString())) {
-                userListController.releaseRead();
-                return u;
-            }
+		for (User u : userList)
+			if (u.toString().equals(user.toString())) {
+				userListController.releaseRead();
+				return u;
+			}
 
-        userListController.releaseRead();
+		userListController.releaseRead();
 
-        return user;
+		return user;
 	}
 
 	public synchronized File getFileWithFilename(String fileName) {
@@ -182,22 +209,22 @@ public class Server  {
 			u.removeFile(f);
 		}
 	}
-	
+
 	public boolean hasUser(String user) {
 		if (!userListController.requestRead())
-            return true;
+			return true;
 
-        for (User u : userList)
-            if (u.getId().equals(user)) {
-                userListController.releaseRead();
-                return true;
-            }
+		for (User u : userList)
+			if (u.getId().equals(user)) {
+				userListController.releaseRead();
+				return true;
+			}
 
-        userListController.releaseRead();
+		userListController.releaseRead();
 
-        return false;
+		return false;
 	}
-	
+
 	public ServerSocket getServerSocket() {
 		return this.socket;
 	}
@@ -222,24 +249,47 @@ public class Server  {
 
 	}
 
-	public static int main(String args[]) {
+	public void loop() throws IOException {
+		while (true) { // Server loop
+
+			Socket auxSocket = null;
+
+			try {
+				auxSocket = this.getServerSocket().accept();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			System.out.println("[SERVER] Client connected from " + auxSocket.getInetAddress().toString().substring(1));
+
+			OutputStream outStr = null;
+			InputStream inStr = null;
+
+			try {
+				outStr = auxSocket.getOutputStream();
+				inStr = auxSocket.getInputStream();
+			} catch (IOException e) {
+				System.err.println("[SERVER] ERROR: I/O error in socket");
+			}
+
+			(new ClientListener(this, inStr, outStr)).start(); // ClientListener thread
+		}
+	}
+
+	public static void main(String args[]) throws IOException {
 		if (args.length != 1) {
-			System.out.println("Port needed");
-			return -1;
+			System.out.println("[SERVER] Port needed");
 		}
 
 		int port = Integer.parseInt(args[0]);
 
 		Server server = new Server(port);
-
-		while(true) {
-			
-			try {
-				server.getServerSocket().accept();
-				
-			} catch (Exception e) {
-				return 1;
-			}
+		
+		try {
+			server.loop();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+
 	}
 }

@@ -8,9 +8,9 @@ public class File implements Serializable{
 
 	private static final long serialVersionUID = 7927011959779472303L;
 	
-	private String name;
-	private String path;
-	private User user;
+	private final String name;
+	private final String path;
+	private final User user;
 	
 	public File(String name, String path, User user) {
 		this.name = name;
@@ -18,10 +18,6 @@ public class File implements Serializable{
 		this.user = user;
 	}
 	
-	public File(File f) {
-		this.name = f.name;
-		this.path = f.path;
-	}
 	
 	public String getName() {
 		return this.name;

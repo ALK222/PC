@@ -3,11 +3,11 @@ package client;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.Semaphore;
 
 import server.File;
 
@@ -24,7 +24,9 @@ public class Transmitter extends Thread {
 
 	public void run() {
 
-		ServerSocket serverSocket;
+		ServerSocket serverSocket = null;
+		FileInputStream fileStr = null;
+		DataOutputStream dataStr = null;
 		try {
 			serverSocket = new ServerSocket(this.port);
 			Socket socket;
@@ -37,15 +39,13 @@ public class Transmitter extends Thread {
 
 			ObjectOutputStream objStr = new ObjectOutputStream(outStr);
 
-			FileInputStream fileStr = new FileInputStream(this.f.getPath());
+			fileStr = new FileInputStream(this.f.toString());
 
-			fileStr = new FileInputStream(f.getPath());
-
-			objStr.writeObject("STARTING");
+			objStr.writeObject("STARTING"); // Start """"Flag""""
 
 			objStr.writeObject(this.f.toString());
 
-			DataOutputStream dataStr = new DataOutputStream(new BufferedOutputStream(outStr));
+			dataStr = new DataOutputStream(new BufferedOutputStream(outStr));
 
 			byte[] buffer = new byte[1024];
 			int read = 0;
@@ -61,14 +61,23 @@ public class Transmitter extends Thread {
 
 				dataStr.write(buffer, 0, read);
 			}
+			
 			dataStr.close();
 			fileStr.close();
 			serverSocket.close();
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			try {
+				dataStr.close();
+				fileStr.close();
+				serverSocket.close();
+			} catch (IOException e1) {
+			}
 			return;
 		}
+
+		
 
 	}
 

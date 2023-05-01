@@ -6,6 +6,7 @@ import server.File;
 
 public class AddFiles extends Message {
 
+	private static final long serialVersionUID = 4423497430897934493L;
 	private ArrayList<File> fileList;
 
 	public AddFiles(String origin, String destination, ArrayList<File> fileList) {

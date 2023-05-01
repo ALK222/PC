@@ -5,7 +5,7 @@ import users.User;
 
 public class SendFile extends Message {
 
-	private String path;
+	private static final long serialVersionUID = -2001470326410849180L;
 	private User destUser;
 	private File file;
 	private int port;

@@ -1,214 +1,363 @@
 package client;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.Socket;
-import java.util.ArrayList;
+import java.net.SocketException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
+import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
+import java.util.Enumeration;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 
 import listeners.ServerListener;
 import messages.AddFiles;
+import messages.DeleteFile;
 import messages.CloseConnection;
 import messages.Connection;
-import messages.DeleteFile;
 import messages.Message;
 import messages.RequestFile;
 import messages.UserList;
 import server.File;
 import users.User;
-import utils.Lock;
-import utils.LockRompeEmpate;
 
-public class Client extends Thread {
-	private String clientIp;
-	private User u;
-	private ServerListener serverListener;
-	private ObjectOutputStream out;
+public class Client {
+
+	private User user;
+	private Semaphore sem;
+	private boolean terminate;
+	private ObjectOutputStream objOutStr;
 	private String serverIp;
-	private int serverPort;
-	private Semaphore clientSem;
-	private Scanner scanner;
-	private Socket socket;
-	private boolean activeConnection;
+	private Scanner in;
 
-	public Client(String serverIp, int serverPort, String clientIp) {
+	public Client(User user, ObjectOutputStream objOutStr, String serverIp) {
 
-		try {
-			this.serverIp = serverIp;
-			this.serverPort = serverPort;
-			this.clientIp = clientIp;
-
-			this.clientSem = new Semaphore(0);
-			this.socket = new Socket(serverIp, serverPort);
-			this.out = new ObjectOutputStream(socket.getOutputStream());
-			this.scanner = new Scanner(System.in);
-			this.activeConnection = true;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		this.user = user;
+		this.sem = new Semaphore(0);
+		this.terminate = false;
+		this.objOutStr = objOutStr;
+		this.serverIp = serverIp;
+		this.in = new Scanner(System.in);
 
 		System.out.println("[CLIENT]: New Client created");
 	}
-	
+
 	public User getUser() {
-		return this.u;
+		return this.user;
 	}
-	
+
 	public Semaphore getSem() {
-		return this.clientSem;
+		return this.sem;
 	}
 
-	public void run() {
-		try {
-			System.out.print("[CLIENT] Client name: ");
-			this.id = scanner.nextLine();
+	public void terminate() {
+		terminate = true;
+	}
 
-			while (this.id == null || this.id.isEmpty()) {
-				System.out.println("[CLIENT] Invalid id. Client name: ");
-				this.id = scanner.nextLine();
-			}
+	public boolean isTerminated() {
+		return this.terminate;
+	}
 
-			this.sendMessage(new Connection(this.clientIp, this.serverIp, id, new ArrayList<File>()));
-			this.serverListener = new ServerListener(socket, this, clientSem, null);
-			this.serverListener.start();
+	public void addFiles() throws IOException {
+		System.out.println("[CLIENT] Files to share? (end with empty input)");
 
-			while (this.activeConnection) {
-				menu();
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		System.out.print("[CLIENT] Full path to file: ");
+		String filepath = in.nextLine();
+
+		ArrayList<File> fileList = new ArrayList<File>();
+
+		while (!filepath.isEmpty()) {
+
+			Path path = Paths.get(filepath);
+
+			File file = new File(filepath, path.getFileName().toString(), user);
+
+			fileList.add(file);
+
+			System.out.print("[CLIENT] Full path to file: ");
+			filepath = in.nextLine();
+
 		}
+
+		if (fileList.isEmpty()) {
+			return;
+		}
+		AddFiles maf = new AddFiles(user.getIp(), serverIp, fileList);
+
+		objOutStr.writeObject(maf);
 	}
 
-	public void menu() throws Exception {
-		int option = 0;
+	public void requestFile() throws IOException {
+		System.out.print("[CLIENT] Filename: ");
+		String filename = in.nextLine();
+
+		System.out.println();
+
+		RequestFile mpf = new RequestFile(user.getIp(), serverIp, filename, user);
+
+		objOutStr.writeObject(mpf);
+	}
+
+	public void removeFiles() throws IOException {
+		System.out.println("[CLIENT] Files to remove? (end with empty input)");
+
+		System.out.print("[CLIENT] Full path to file: ");
+		String filepath = in.nextLine();
+
+		ArrayList<File> fileList = new ArrayList<File>();
+
+		while (!filepath.isEmpty()) {
+
+			Path path = Paths.get(filepath);
+
+			File file = new File(filepath, path.getFileName().toString(), user);
+
+			fileList.add(file);
+
+			System.out.print("[CLIENT] Full path to file: ");
+			filepath = in.nextLine();
+
+		}
+
+		if (fileList.isEmpty()) {
+			return;
+		}
+
+		DeleteFile mdf = new DeleteFile(user.getIp(), serverIp, fileList);
+
+		objOutStr.writeObject(mdf);
+
+	}
+
+	public void menuLoop() throws Exception {
+		int option;
 
 		do {
-			this.clientSem.acquire();
-			option = menuAux();
-			switch (option) {
-			case 0:
-				this.closeConnection();
+
+			// Wait for ServerListener to release the sem to open menu again
+			try {
+				sem.acquire();
+			} catch (InterruptedException e) {
+				System.err.println("[CLIENT] ERROR: (internal) client stdout semaphore interrupted");
 				return;
-			case 1:
-				this.requestUserList();
-				break;
-			case 2:
-				this.sendFileList(this.requestSendFileList());
-				break;
-			case 3:
-				this.stopSendFileList(this.requestStopSendFileList());
-				break;
-			case 4:
-				this.downloadFile(this.requestFile());
-				break;
 			}
-		} while (true);
+
+			if (this.isTerminated()) {
+				throw new Exception("[CLIENT] User Already in use");
+			}
+
+			System.out.println("Options:");
+			System.out.println("	1.- Get user list");
+			System.out.println("	2.- Request file");
+			System.out.println("	3.- Add file");
+			System.out.println("	4.- Remove File");
+			System.out.println("	0.- Exit");
+			System.out.println();
+			System.out.print("Choose an option: ");
+
+			String line = in.nextLine();
+
+			System.out.println();
+
+			try { // Line is integer
+				option = Integer.parseInt(line);
+			} catch (NumberFormatException e) {
+
+				System.err.println("ERROR: option must be an integer");
+				System.out.println();
+
+				option = -1;
+
+			}
+
+			switch (option) {
+
+			case 1: // List users
+				UserList m = new UserList(user.getIp(), serverIp);
+				objOutStr.writeObject(m);
+
+				break;
+
+			case 2: // Request file
+				requestFile();
+
+				break;
+
+			case 3: // Add file
+				this.addFiles();
+				break;
+
+			case 4: // Remove Files
+				removeFiles();
+				break;
+
+			case 0: // Close connection
+				CloseConnection mcc = new CloseConnection(user.getIp(), serverIp, user);
+
+				objOutStr.writeObject(mcc);
+
+				break;
+
+			case -1:
+
+				sem.release();
+
+				break;
+
+			default:
+
+				System.err.println("[CLIENT] : option " + option + " not valid");
+				System.out.println();
+
+				sem.release();
+
+				break;
+
+			}
+
+		} while (option != 0);
+
 	}
 
-	private void downloadFile(String requestFile) throws IOException {
-		this.out.writeObject(new RequestFile(this.clientIp, this.serverIp, this.id, requestFile));		
-	}
+	public void run() throws Exception {
+		// Connection
+		Message mc = new Connection(user.getIp(), serverIp, user);
 
-	private String requestFile() {
-		System.out.print("[CLIENT] File to download: ");
-		return scanner.nextLine();
-	}
-
-	private int menuAux() {
-		int op;
-
-		System.out.print(
-				"0.- Close Connection\n1.- User List\n2.- Share Files\n3.- Stop Sharing Files\n4.- Request File\n");
-		System.out.print(">>");
-		String aux = scanner.nextLine();
-
-		while (Integer.parseInt(aux) < 0 || Integer.parseInt(aux) > 4) {
-			System.out.println("Invalid option");
-			System.out.print(">>");
-			aux = scanner.nextLine();
-		}
-		op = Integer.parseInt(aux);
-
-		return op;
-	}
-
-	public void closeConnection() throws IOException {
-		this.out.writeObject(new CloseConnection(this.clientIp, this.serverIp, this.id));
-	}
-
-	private void requestUserList() throws IOException {
-		this.out.writeObject(new UserList(this.clientIp, this.serverIp, id));
-
-	}
-
-	private ArrayList<File> requestSendFileList() {
-		ArrayList<File> shareFiles = new ArrayList<File>();
-		System.out.println("Name of files to share (END): ");
-		String f = scanner.nextLine();
-		while (!f.equalsIgnoreCase("END")) {
-			shareFiles.add(new File(f, f));
-			f = scanner.nextLine();
-		}
-		return shareFiles;
-	}
-
-	private void sendFileList(ArrayList<File> requestSendFileList) throws IOException {
-		this.out.writeObject(new AddFiles(this.clientIp, this.serverIp, this.id, requestSendFileList));
-	}
-
-	private ArrayList<File> requestStopSendFileList() {
-		ArrayList<File> shareFiles = new ArrayList<File>();
-		System.out.println("Name of files to stop sharing (END): ");
-		String f = scanner.nextLine();
-		while (!f.equalsIgnoreCase("END")) {
-			shareFiles.add(new File(f, f));
-			f = scanner.nextLine();
-		}
-		return shareFiles;
-	}
-
-	private void stopSendFileList(ArrayList<File> requestStopSendFileList) throws IOException {
-		this.out.writeObject(new DeleteFile(this.clientIp, this.serverIp, this.id, requestStopSendFileList));
-
-	}
-
-	public void sendMessage(Message m) {
 		try {
-			this.out.writeObject(m);
+			objOutStr.writeObject(mc);
+		} catch (IOException e) {
+			System.err.println("[CLIENT] ERROR: I/O error in stream");
+			return;
+		}
+
+		this.addFiles();
+
+		try {
+			menuLoop();
+		} catch (Exception e) {
+			in.close();
+			throw e;
+		}
+		in.close();
+		sem.release();
+
+	}
+
+	public static void main(String args[]) {
+		Scanner in = new Scanner(System.in);
+
+		System.out.print("[CLIENT] Username: ");
+		String username = in.nextLine();
+
+		// NETWORK STUFF
+		Enumeration<NetworkInterface> interfaces = null;
+
+		try {
+			interfaces = NetworkInterface.getNetworkInterfaces();
+		} catch (Exception e) {
+			e.printStackTrace();
+			in.close();
+		}
+		StringBuilder sb = new StringBuilder();
+
+		if (interfaces.hasMoreElements())
+			sb.append(interfaces.nextElement().getDisplayName());
+
+		while (interfaces.hasMoreElements()) {
+			sb.append(", ");
+			sb.append(interfaces.nextElement().getDisplayName());
+		}
+
+		System.out.print("[CLIENT] Select network interface (" + sb + "): ");
+
+		String iface = in.nextLine();
+
+		NetworkInterface ni = null;
+
+		try {
+			ni = NetworkInterface.getByName(iface);
+		} catch (SocketException e) {
+			System.err.println("[CLIENT] ERROR: could not retrieve names of network interfaces");
+			in.close();
+			return;
+		}
+
+		if (ni == null) {
+			System.err.println("[CLIENT] ERROR: network interface not found");
+			in.close();
+			return;
+		}
+		Enumeration<InetAddress> en = ni.getInetAddresses();
+
+		InetAddress i = en.nextElement();
+
+		while (i.getClass() != Inet4Address.class)
+			i = en.nextElement();
+
+		String hostname = i.toString().substring(1);
+
+		System.out.print("[CLIENT] Server IP: ");
+		String server = in.nextLine();
+
+		System.out.print("[CLIENT] Server port: ");
+		int port = in.nextInt();
+		in.nextLine();
+
+		System.out.println();
+
+		// END OF NETWORK STUFF
+
+		User user = new User(username, hostname);
+
+		Socket sock = null;
+
+		try {
+			sock = new Socket(server, port);
+		} catch (IOException e) {
+			System.err.println("ERROR: server not found");
+			in.close();
+		}
+
+		OutputStream outStr = null;
+		InputStream inStr = null;
+
+		try {
+			outStr = sock.getOutputStream();
+			inStr = sock.getInputStream();
+		} catch (IOException e) {
+			System.err.println("ERROR: I/O error in socket");
+			in.close();
+		}
+
+		ObjectOutputStream objOutStr = null;
+		ObjectInputStream objInStr = null;
+
+		try {
+			objOutStr = new ObjectOutputStream(outStr);
+			objInStr = new ObjectInputStream(inStr);
+		} catch (IOException e) {
+			System.err.println("ERROR: I/O error in stream");
+			in.close();
+			return;
+		}
+
+		Client client = new Client(user, objOutStr, server);
+
+		(new ServerListener(client, objInStr, objOutStr)).start(); // ServerListener thread
+
+		try {
+			client.run(); // Client stuff
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-	}
-
-	public String getIp() {
-		return this.clientIp;
-	}
-
-	public String getServerIp() {
-		return this.serverIp;
-	}
-
-	public String getClientId() {
-		return this.id;
-	}
-	
-	public static int main(String args[]) {
-		if (args.length != 3) {
-    		System.out.println("Args: \n1.-Server IP\n2.- Server Port \n3.- Client ip");
-    		return -1;
-    	}
-    	else {
-    		String ipServidor = args[0];
-    		int puertoServidor = Integer.parseInt(args[1]);
-    		String ipCliente = args[2];
-    		
-    		Client cliente = new Client(ipServidor, puertoServidor, ipCliente);
-    		cliente.run();
-    	}
-		return 0;
 	}
 
 }

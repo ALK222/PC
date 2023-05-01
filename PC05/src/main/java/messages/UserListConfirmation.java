@@ -7,6 +7,7 @@ import users.User;
 
 public class UserListConfirmation extends Message {
 
+	private static final long serialVersionUID = -3139810252056882455L;
 	private ArrayList<User> userList;
 	private ArrayList<ArrayList<File>> fileMatrix;
 

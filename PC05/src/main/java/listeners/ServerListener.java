@@ -3,22 +3,17 @@ package listeners;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 
 import client.Client;
-import client.Globals;
 import client.Receptor;
 import client.Transmitter;
-import messages.Connection;
 import messages.Message;
 import messages.PrepClientServer;
 import messages.PrepServerClient;
 import messages.SendFile;
 import messages.UserListConfirmation;
-import java.net.ServerSocket;
 import server.File;
 import users.User;
 
@@ -36,6 +31,7 @@ public class ServerListener extends Thread {
 		this.client = client;
 	}
 
+	@Override
 	public void run() {
 		
 		while (true) {
@@ -55,6 +51,7 @@ public class ServerListener extends Thread {
 					break;
 				case SEND_FILE:
 					sendFile((SendFile) m, sem);
+					sem.release();
 					break;
 				case REQUEST_FILE_ERROR:
 					System.out.println("[SERVERLISTENER]: FileRequestError");
@@ -64,12 +61,18 @@ public class ServerListener extends Thread {
 					System.out.println("[SERVERLISTENER] File added");
 					sem.release();
 					break;
+				case DELETE_FILE_CONFIRM:
+					System.out.println("[SERVERLISTENER] Files deleted");
+					sem.release();
+					break;
 				case PREPAIRING_SERVER_CLIENT:
 					prepServerClientMessage((PrepServerClient) m, sem);
+					sem.release();
 					break;
 					
 				case CLOSE_CONNECTION_CONFIRM:
 					System.out.println("[SERVERLISTENER]: Connection ended");
+					sem.release();
 					return;
 				default:
 					break;
@@ -86,13 +89,13 @@ public class ServerListener extends Thread {
 	}
 
 	private void sendFile(SendFile m, Semaphore sem) throws IOException {
-		Message mpcs = new PrepClientServer(this.client.getIp(), m.getDestUser().getIp(), this.client.getIp(), m.getPort(), this.client.getUser());
+		Message mpcs = new PrepClientServer(this.client.getUser().getIp(), m.getDestUser().getIp(), m.getPort(), this.client.getUser());
 		
 		try {
 			this.out.writeObject(mpcs);
 		} catch (Exception e) {
 			e.printStackTrace();
-			client.interrupt();
+			client.terminate();
 			sem.release();
 			return;
 		}
@@ -126,7 +129,7 @@ public class ServerListener extends Thread {
 	private void connectionErrorMessage(Message m, Semaphore sem) {
 		System.out.println("[SERVERLISTENER]: Error in connection");
 		
-		this.client.interrupt();
+		this.client.terminate();
 		sem.release();
 		
 	}

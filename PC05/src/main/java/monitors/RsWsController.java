@@ -4,8 +4,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-// Monitor readers/writers implementado con lock & conditions
-public class ReadersWritersController {
+public class RsWsController {
 
     private int numReaders;
     private int numWriters;
@@ -13,7 +12,7 @@ public class ReadersWritersController {
     private final Condition readyToRead; 
     private final Condition readyToWrite;
 
-    public ReadersWritersController() {
+    public RsWsController() {
 
         numReaders = 0;
         numWriters = 0;
@@ -33,7 +32,7 @@ public class ReadersWritersController {
             }
             catch (InterruptedException e) {
 
-                System.err.println("ERROR: interrupted thread");
+                System.err.println("[MONITOR] ERROR: interrupted thread");
                 lock.unlock();
 
                 return false;
@@ -72,7 +71,7 @@ public class ReadersWritersController {
             }
             catch (InterruptedException e) {
 
-                System.err.println("ERROR: interrupted thread");
+                System.err.println("[MONITOR] ERROR: interrupted thread");
                 lock.unlock();
 
                 return false;

@@ -4,6 +4,7 @@ import users.User;
 
 public class PrepServerClient extends Message {
 
+	private static final long serialVersionUID = 3833481782337583560L;
 	private int port;
 	private User u;
 

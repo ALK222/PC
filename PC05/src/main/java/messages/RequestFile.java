@@ -4,6 +4,7 @@ import users.User;
 
 public class RequestFile extends Message {
 
+	private static final long serialVersionUID = 1180290788923592325L;
 	private String fileName;
 	private User u;
 

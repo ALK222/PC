@@ -46,7 +46,7 @@ public class User implements Serializable {
 	}
 
 	public void addFile(File file) {
-		this.fileList.add(new File(file));
+		this.fileList.add(new File(file.getName(), file.getPath(), file.getUser()));
 	}
 
 	public void removeFile(File file) {

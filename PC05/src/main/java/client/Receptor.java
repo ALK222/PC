@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
+import java.io.File;
 
 import users.User;
 
@@ -25,8 +26,12 @@ public class Receptor extends Thread {
 	}
 
 	public void run() {
+
+		FileOutputStream fileStr = null;
+		DataInputStream dataStr = null;
+
+		Socket socket = null;
 		try {
-			Socket socket;
 
 			socket = new Socket(user.getIp(), port);
 
@@ -40,13 +45,17 @@ public class Receptor extends Thread {
 				return;
 			}
 
-			String filename = (String) objStr.readObject();
+			String[] filename = ((String) objStr.readObject()).split("/");
 
-			FileOutputStream fileStr = new FileOutputStream(filename);
+			File f = new File("./" + filename[filename.length - 1]); // downloads in same directory where the client is
+																		// executed
+			f.createNewFile();
 
-			DataInputStream dataStr = new DataInputStream(new BufferedInputStream(inStr));
+			fileStr = new FileOutputStream("./" + filename[filename.length - 1]);
 
-			byte[] buffer = new byte[1024]; // buffer de bytes
+			dataStr = new DataInputStream(new BufferedInputStream(inStr));
+
+			byte[] buffer = new byte[1024];
 			int read;
 
 			while (true) {
@@ -61,7 +70,6 @@ public class Receptor extends Thread {
 					return;
 				}
 
-				// Leer bytes del buffer y escribirlos en el fichero
 				try {
 					fileStr.write(buffer, 0, read);
 				} catch (IOException e) {
@@ -71,13 +79,19 @@ public class Receptor extends Thread {
 					return;
 				}
 			}
-			
+
 			dataStr.close();
 			fileStr.close();
 			socket.close();
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			try {
+				dataStr.close();
+				fileStr.close();
+				socket.close();
+			} catch (Exception e1) {
+			}
 			sem.release();
 		}
 
