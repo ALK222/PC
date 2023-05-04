@@ -81,6 +81,7 @@ public class ClientListener extends Thread {
 				
 			case DELETE_FILE:
 				deleteFileMessage((DeleteFile) m, outStr, user);
+				break;
 			case CLOSE_CONNECTION:
 				closeConnectionMessage((CloseConnection) m, outStr);
 				break;

@@ -5,23 +5,23 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Scanner;
 import java.util.ArrayList;
-import java.util.concurrent.Semaphore;
 import java.util.Enumeration;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
+import java.util.Scanner;
+import java.util.concurrent.Semaphore;
 
 import listeners.ServerListener;
 import messages.AddFiles;
-import messages.DeleteFile;
 import messages.CloseConnection;
 import messages.Connection;
+import messages.DeleteFile;
 import messages.Message;
 import messages.RequestFile;
 import messages.UserList;
@@ -179,46 +179,46 @@ public class Client {
 
 			switch (option) {
 
-			case 1: // List users
-				UserList m = new UserList(user.getIp(), serverIp);
-				objOutStr.writeObject(m);
+				case 1: // List users
+					UserList m = new UserList(user.getIp(), serverIp);
+					objOutStr.writeObject(m);
 
-				break;
+					break;
 
-			case 2: // Request file
-				requestFile();
+				case 2: // Request file
+					requestFile();
 
-				break;
+					break;
 
-			case 3: // Add file
-				this.addFiles();
-				break;
+				case 3: // Add file
+					this.addFiles();
+					break;
 
-			case 4: // Remove Files
-				removeFiles();
-				break;
+				case 4: // Remove Files
+					removeFiles();
+					break;
 
-			case 0: // Close connection
-				CloseConnection mcc = new CloseConnection(user.getIp(), serverIp, user);
+				case 0: // Close connection
+					CloseConnection mcc = new CloseConnection(user.getIp(), serverIp, user);
 
-				objOutStr.writeObject(mcc);
+					objOutStr.writeObject(mcc);
 
-				break;
+					break;
 
-			case -1:
+				case -1:
 
-				sem.release();
+					sem.release();
 
-				break;
+					break;
 
-			default:
+				default:
 
-				System.err.println("[CLIENT] : option " + option + " not valid");
-				System.out.println();
+					System.err.println("[CLIENT] : option " + option + " not valid");
+					System.out.println();
 
-				sem.release();
+					sem.release();
 
-				break;
+					break;
 
 			}
 
@@ -350,12 +350,14 @@ public class Client {
 
 		Client client = new Client(user, objOutStr, server);
 
-		(new ServerListener(client, objInStr, objOutStr)).start(); // ServerListener thread
+		ServerListener sl = new ServerListener(client, objInStr, objOutStr);
+		sl.start();
 
 		try {
 			client.run(); // Client stuff
 		} catch (Exception e) {
 			e.printStackTrace();
+			sl.interrupt();
 		}
 
 	}

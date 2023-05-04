@@ -1,103 +1,104 @@
 package monitors;
 
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import locks.Lock;
+import locks.LockRompeEmpate;
 
 public class RsWsController {
 
-    private int numReaders;
-    private int numWriters;
-    private final Lock lock; 
-    private final Condition readyToRead; 
-    private final Condition readyToWrite;
+	private int numReaders;
+	private int numWriters;
+	private final Lock lock;
+	private boolean readyToRead;
+	private boolean readyToWrite;
 
-    public RsWsController() {
+	public RsWsController() {
 
-        numReaders = 0;
-        numWriters = 0;
-        lock = new ReentrantLock(true);
-        readyToRead = lock.newCondition();
-        readyToWrite = lock.newCondition();
+		numReaders = 0;
+		numWriters = 0;
+		lock = new LockRompeEmpate(10000);
+		readyToRead = true;
+		readyToWrite = true;
 
-    }
+	}
 
-    public boolean requestRead() {
+	public boolean requestRead() {
 
-        lock.lock();
+		lock.takeLock(numReaders + 1);
 
-        while (numWriters > 0) {
-            try {
-                readyToRead.await();
-            }
-            catch (InterruptedException e) {
+		while (numWriters > 0 && !readyToRead) {
+			try {
+				if(readyToRead) {
+					break;
+				}
+			} catch (Exception e) {
 
-                System.err.println("[MONITOR] ERROR: interrupted thread");
-                lock.unlock();
+				System.err.println("[MONITOR] ERROR: interrupted thread");
+				lock.releaseLock(numReaders + 1);
 
-                return false;
+				return false;
 
-            }
-        }
+			}
+		}
 
-        numReaders++;
+		numReaders++;
 
-        lock.unlock();
+		lock.releaseLock(numReaders + 1);
 
-        return true;
+		return true;
 
-    }
+	}
 
-    public void releaseRead() {
+	public void releaseRead() {
 
-        lock.lock();
+		lock.takeLock(numReaders);
 
-        numReaders--;
+		numReaders--;
 
-        if (numReaders == 0)
-            readyToWrite.signal();
+		if (numReaders == 0)
+			readyToWrite = true;
 
-        lock.unlock();
+		lock.releaseLock(numReaders + 1);
 
-    }
+	}
 
-    public boolean requestWrite() {
+	public boolean requestWrite() {
 
-        lock.lock();
+		lock.takeLock(numWriters + 1);
 
-        while (numReaders > 0 || numWriters > 0) {
-            try {
-                readyToWrite.await();
-            }
-            catch (InterruptedException e) {
+		while (numReaders > 0 || numWriters > 0) {
+			try {
+				if(readyToWrite) {
+					break;
+				}
+			} catch (Exception e) {
 
-                System.err.println("[MONITOR] ERROR: interrupted thread");
-                lock.unlock();
+				System.err.println("[MONITOR] ERROR: interrupted thread");
+				lock.releaseLock(numWriters + 1);
 
-                return false;
+				return false;
 
-            }
-        }
+			}
+		}
 
-        numWriters++;
+		numWriters++;
 
-        lock.unlock();
+		lock.releaseLock(numWriters);
 
-        return true;
+		return true;
 
-    }
+	}
 
-    public void releaseWrite() {
+	public void releaseWrite() {
 
-        lock.lock();
+		lock.takeLock(numWriters);
 
-        numWriters--;
+		numWriters--;
 
-        readyToWrite.signal();
-        readyToRead.signalAll();
+		readyToWrite = true;
+		readyToRead = true;
 
-        lock.unlock();
+		lock.releaseLock(numWriters + 1);
 
-    }
+	}
 
 }

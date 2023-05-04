@@ -7,16 +7,13 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import listeners.ClientListener;
-
-import java.util.HashMap;
-
-import users.User;
-
-import monitors.RsWsController;;
+import monitors.RsWsController;
+import users.User;;
 
 public class Server {
 
@@ -63,7 +60,7 @@ public class Server {
 	/*
 	 * USER LIST FUNCTIONS
 	 */
-	public synchronized boolean presentId(String id) {
+	public boolean presentId(String id) {
 		if (!userListController.requestRead())
 			return true;
 
@@ -78,7 +75,8 @@ public class Server {
 		return false;
 	}
 
-	public synchronized boolean addUser(User u, ObjectOutputStream uf) {
+	// NO PONER SYNCHRONIZED
+	public boolean addUser(User u, ObjectOutputStream uf) {
 		if (!userStreamMapController.requestWrite()) {
 			return false;
 		}
@@ -96,7 +94,7 @@ public class Server {
 		return true;
 	}
 
-	public synchronized boolean deleteUser(User user) {
+	public boolean deleteUser(User user) {
 		if (!userStreamMapController.requestWrite())
 			return false;
 
@@ -115,7 +113,7 @@ public class Server {
 		return true;
 	}
 
-	public synchronized ArrayList<User> getUserList() {
+	public ArrayList<User> getUserList() {
 		if (!this.userListController.requestRead()) {
 			return null;
 		}
@@ -124,7 +122,7 @@ public class Server {
 		return aux;
 	}
 
-	public synchronized ArrayList<ArrayList<File>> getFileMatrix() {
+	public ArrayList<ArrayList<File>> getFileMatrix() {
 
 		if (!this.userStreamMapController.requestRead()) {
 			return null;
@@ -140,7 +138,7 @@ public class Server {
 		return matrix;
 	}
 
-	public synchronized User getUser(User user) {
+	public User getUser(User user) {
 		if (!userListController.requestRead())
 			return null;
 
@@ -155,7 +153,7 @@ public class Server {
 		return user;
 	}
 
-	public synchronized File getFileWithFilename(String fileName) {
+	public File getFileWithFilename(String fileName) {
 
 		if (!userListController.requestRead())
 			return null;
@@ -172,7 +170,7 @@ public class Server {
 		return null;
 	}
 
-	public synchronized void addFile(String id, ArrayList<File> fileList) {
+	public void addFile(String id, ArrayList<File> fileList) {
 		User u = null;
 
 		int index = 0;
@@ -190,7 +188,7 @@ public class Server {
 		}
 	}
 
-	public synchronized void removeFile(String id, ArrayList<File> fileList) {
+	public void removeFile(String id, ArrayList<File> fileList) {
 		User u = null;
 
 		int index = 0;
@@ -284,7 +282,7 @@ public class Server {
 		int port = Integer.parseInt(args[0]);
 
 		Server server = new Server(port);
-		
+
 		try {
 			server.loop();
 		} catch (Exception e) {

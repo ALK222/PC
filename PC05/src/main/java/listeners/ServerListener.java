@@ -36,6 +36,13 @@ public class ServerListener extends Thread {
 		
 		while (true) {
 			Semaphore sem = this.client.getSem();
+			sem.release();
+			try {
+				sem.acquire();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			Message m;
 			try {
 				m = (Message) this.in.readObject();
@@ -55,14 +62,17 @@ public class ServerListener extends Thread {
 					break;
 				case REQUEST_FILE_ERROR:
 					System.out.println("[SERVERLISTENER]: FileRequestError");
+					sleep(100);
 					sem.release();
 					break;
 				case ADD_FILE_CONFIRM:
 					System.out.println("[SERVERLISTENER] File added");
+					sleep(100);
 					sem.release();
 					break;
 				case DELETE_FILE_CONFIRM:
 					System.out.println("[SERVERLISTENER] Files deleted");
+					sleep(100);
 					sem.release();
 					break;
 				case PREPAIRING_SERVER_CLIENT:
@@ -72,6 +82,7 @@ public class ServerListener extends Thread {
 					
 				case CLOSE_CONNECTION_CONFIRM:
 					System.out.println("[SERVERLISTENER]: Connection ended");
+					sleep(100);
 					sem.release();
 					return;
 				default:
@@ -104,8 +115,8 @@ public class ServerListener extends Thread {
 		new Transmitter(m.getPort(), m.getFile()).start();
 	}
 
-	private void userListConfirmMessage(UserListConfirmation m, Semaphore sem) {
-		System.out.println("[SERVERLISTENER]: user information:");
+	private void userListConfirmMessage(UserListConfirmation m, Semaphore sem) throws Exception {
+		//System.out.println("[SERVERLISTENER]: user information:");
 		ArrayList<User> userList = m.getUserList();
 		ArrayList<ArrayList<File>> fileMatrix = m.getFileMatrix();
 		for (int i = 0; i < userList.size(); i++) {
@@ -117,17 +128,19 @@ public class ServerListener extends Thread {
 				System.out.println("" + (j + 1) + ".-" + fileMatrix.get(i).get(j).getName());
 			}
 		}
+		
+		sleep(100);
 		sem.release();
 	}
 
 	private void connectionConfirmMessage(Message m, Semaphore sem) {
-		System.out.println("[SERVERLISTENER]: Connection established");
+		//System.out.println("[SERVERLISTENER]: Connection established");
 		sem.release();
 
 	}
 
 	private void connectionErrorMessage(Message m, Semaphore sem) {
-		System.out.println("[SERVERLISTENER]: Error in connection");
+		//System.out.println("[SERVERLISTENER]: Error in connection");
 		
 		this.client.terminate();
 		sem.release();
