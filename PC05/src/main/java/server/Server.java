@@ -9,9 +9,9 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 import listeners.ClientListener;
+import locks.LockRompeEmpate;
 import monitors.RsWsController;
 import users.User;;
 
@@ -24,7 +24,7 @@ public class Server {
 	private Map<User, ObjectOutputStream> userStreams;
 	private RsWsController userStreamMapController;
 	private RsWsController userListController;
-	private ReentrantLock nextPortLock;
+	private LockRompeEmpate nextPortLock;
 
 	public Server(int port) {
 		try {
@@ -36,7 +36,7 @@ public class Server {
 			userStreamMapController = new RsWsController();
 			userListController = new RsWsController();
 
-			nextPortLock = new ReentrantLock(true);
+			nextPortLock = new LockRompeEmpate(1000);
 
 			System.out.println("[SERVER] Server at port: " + this.port);
 		} catch (Exception e) {
@@ -232,7 +232,7 @@ public class Server {
 	 */
 	public int getAndIncrementNextPort() {
 
-		nextPortLock.lock();
+		nextPortLock.takeLock(0);
 
 		int ret = nextPort;
 		nextPort++;
@@ -241,7 +241,7 @@ public class Server {
 		if (nextPort == 31000)
 			nextPort = 30000;
 
-		nextPortLock.unlock();
+		nextPortLock.releaseLock(0);
 
 		return ret;
 
